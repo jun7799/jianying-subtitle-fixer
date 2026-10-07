@@ -210,6 +210,19 @@ def write_srt(path, subs):
 
 # ============ 纠错层 ============
 
+# 正则级规则：处理"发音变体×上下文形式"矩阵（枚举映射追不完的一类错拼）。
+# 注意：Python 的 \b 在中英文交界处失效（中文也是\w），必须用 (?<![a-zA-Z])/(?![a-zA-Z]) 做边界。
+# 顺序重要：先具体（带code/md后缀），后泛化（单独的cloud/clow）。
+REGEX_FIXES = [
+    # Claude Code 的音变+形式变体：claw扣 / claw code / cloud code / clou code / Claude code...
+    (re.compile(r"(?<![a-zA-Z])(cl[ao]{1,2}w?|cloud|clou)\s*(扣|code|科德)(?![a-zA-Z])", re.IGNORECASE), "Claude Code"),
+    # CLAUDE.md 文件：cloud MD / cloud MB / cloud点MD / clow.md ...
+    (re.compile(r"(?<![a-zA-Z])(cl[ao]{1,2}w?|cloud|clou)\s*[.·点]?\s*(md|mb)(?![a-zA-Z])", re.IGNORECASE), "CLAUDE.md"),
+    # 单独的 claude 误识：cloud / clow（教程语境几乎不会说英文"云"，要说云都是"云端"）
+    (re.compile(r"(?<![a-zA-Z])(cloud|clow)(?![a-zA-Z])", re.IGNORECASE), "Claude"),
+]
+
+
 def rule_fix(text, terms_cfg):
     """规则层：确定映射替换（不区分大小写、全词感知）"""
     changed = []
@@ -220,13 +233,21 @@ def rule_fix(text, terms_cfg):
             if new != text:  # 已是正确写法时不记录（忽略大小写的重复匹配）
                 text = new
                 changed.append(f'"{wrong}"→"{right}"')
+    for pattern, target in REGEX_FIXES:
+        new = pattern.sub(target, text)
+        if new != text:
+            text = new
+            changed.append(f"正则→{target}")
     return text, changed
 
 
 def enforce_terms(text, terms_cfg):
-    """写回前的最后防线：术语表里的词必须按权威写法。"""
+    """写回前的最后防线：术语表里的词必须按权威写法（英文词边界防子串误伤）。"""
     for term in terms_cfg.get("terms", []):
-        pattern = re.compile(re.escape(term), re.IGNORECASE)
+        if re.search(r"[a-zA-Z]", term):
+            pattern = re.compile(rf"(?<![a-zA-Z]){re.escape(term)}(?![a-zA-Z])", re.IGNORECASE)
+        else:
+            pattern = re.compile(re.escape(term), re.IGNORECASE)
         text = pattern.sub(term, text)
     return text
 
