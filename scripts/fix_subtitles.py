@@ -214,10 +214,10 @@ def write_srt(path, subs):
 # 注意：Python 的 \b 在中英文交界处失效（中文也是\w），必须用 (?<![a-zA-Z])/(?![a-zA-Z]) 做边界。
 # 顺序重要：先具体（带code/md后缀），后泛化（单独的cloud/clow）。
 REGEX_FIXES = [
-    # Claude Code 的音变+形式变体：claw扣 / claw code / cloud code / clou code / Claude code...
-    (re.compile(r"(?<![a-zA-Z])(cl[ao]{1,2}w?|cloud|clou)\s*(扣|code|科德)(?![a-zA-Z])", re.IGNORECASE), "Claude Code"),
-    # CLAUDE.md 文件：cloud MD / cloud MB / cloud点MD / clow.md ...
-    (re.compile(r"(?<![a-zA-Z])(cl[ao]{1,2}w?|cloud|clou)\s*[.·点]?\s*(md|mb)(?![a-zA-Z])", re.IGNORECASE), "CLAUDE.md"),
+    # Claude Code 的音变+形式变体：claw扣 / claw code / cloud code / cloak code / clou code...
+    (re.compile(r"(?<![a-zA-Z])(cl[ao]{1,2}w?k?|cloud|clou)\s*(扣|code|科德)(?![a-zA-Z])", re.IGNORECASE), "Claude Code"),
+    # CLAUDE.md 文件：cloud MD / cloud MB / cloak md / cloud点MD / clow.md ...
+    (re.compile(r"(?<![a-zA-Z])(cl[ao]{1,2}w?k?|cloud|clou)\s*[.·点]?\s*(md|mb)(?![a-zA-Z])", re.IGNORECASE), "CLAUDE.md"),
     # 单独的 claude 误识：cloud / clow（教程语境几乎不会说英文"云"，要说云都是"云端"）
     (re.compile(r"(?<![a-zA-Z])(cloud|clow)(?![a-zA-Z])", re.IGNORECASE), "Claude"),
 ]

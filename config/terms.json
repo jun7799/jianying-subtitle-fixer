@@ -70,6 +70,9 @@
     "discovery": "DeepSeek Harness",
     "adobe": "Anthropic",
     "reshow": "resume",
-    "re-show": "resume"
+    "re-show": "resume",
+    "sub agent": "Sub-Agent",
+    "subAgent": "Sub-Agent",
+    "subagent": "Sub-Agent"
   }
 }
