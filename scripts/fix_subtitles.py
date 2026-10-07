@@ -6,10 +6,15 @@
 
 用法：
     python fix_subtitles.py <草稿名> [--dry-run] [--no-llm] [--batch N]
+                             [--reuse] [--model MODEL]
 
     --dry-run  只生成对照表和SRT，不写回草稿（剪映开着也能跑）
     --no-llm   只跑规则层替换，不调智谱API（快速+零成本）
     --batch N  LLM每批条数，默认30
+    --reuse    复用最近一次计算的纠错结果直接写回，跳过LLM重跑（秒级）。
+               前提：自那次 dry-run 后没有在剪映里改过字幕
+    --model    智谱模型名，默认环境变量 ZHIPU_MODEL 或 glm-4-flash；
+               晚高峰限流慢时可换 glm-5.3-flash
 
 环境要求（详见 references/setup.md）：
     - jy-draftc.exe 放在本 skill 的 tools/ 下（自行从 GitHub 下载）
@@ -43,7 +48,7 @@ WORKSPACE = os.path.join(SKILL_DIR, r"workspace")
 
 # ============ 智谱 API ============
 ZHIPU_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-ZHIPU_MODEL = "glm-4-flash"  # 免费模型
+ZHIPU_MODEL = os.environ.get("ZHIPU_MODEL", "glm-4-flash")  # 可用 --model 覆盖
 
 
 def log(tag, msg):
@@ -330,13 +335,19 @@ def llm_fix_batch(batch, terms_cfg, api_key):
 
 
 def main():
-    global JY_EXE, TERMS_FILE
+    global JY_EXE, TERMS_FILE, ZHIPU_MODEL
     parser = argparse.ArgumentParser(description="剪映字幕AI纠错")
     parser.add_argument("draft", help="剪映草稿名（即草稿列表里显示的名字）")
     parser.add_argument("--dry-run", action="store_true", help="只出对照表，不写回")
     parser.add_argument("--no-llm", action="store_true", help="只跑规则层，不调API")
     parser.add_argument("--batch", type=int, default=30, help="LLM每批条数")
+    parser.add_argument("--reuse", action="store_true",
+                        help="复用最近一次计算的纠错结果直接写回（秒级，跳过LLM）")
+    parser.add_argument("--model", default=ZHIPU_MODEL,
+                        help=f"智谱模型名（默认 {ZHIPU_MODEL}）")
     args = parser.parse_args()
+
+    ZHIPU_MODEL = args.model
 
     t0 = time.time()
     JY_EXE = find_jy_exe()
@@ -394,18 +405,35 @@ def main():
     terms_cfg = load_terms()
     changes = []  # (idx, start_us, old, new, reason)
 
-    # ---- 规则层 ----
-    log("STEP", "[3/5] 规则层替换（术语表映射）...")
-    fixed_texts = []
-    for i, (start, dur, text, mid) in enumerate(subs):
-        new_text, reasons = rule_fix(text, terms_cfg)
-        if reasons:
-            changes.append((i, start, text, new_text, "规则: " + "、".join(reasons)))
-        fixed_texts.append(new_text)
-    log("OK", f"规则层修正 {sum(1 for c in changes)} 条")
+    # ---- 复用模式：直接加载上次计算结果，跳过规则层与LLM层 ----
+    if args.reuse:
+        plan_file = os.path.join(out_dir, "plan.json")
+        if not os.path.exists(plan_file):
+            log("ERROR", f"无可复用结果（{plan_file} 不存在）。请先完整跑一次 dry-run 生成。")
+            sys.exit(1)
+        plan = json.load(open(plan_file, encoding="utf-8"))
+        log("INFO", f"复用 {plan.get('created','?')} 的纠错结果（模型 {plan.get('model','?')}），跳过重算")
+        log("WARN", "前提：自那次运行后没有在剪映里改过字幕，否则改动会被覆盖。")
+        fixed_map_plan = {item["mid"]: item["text"] for item in plan.get("fixes", [])}
+        fixed_texts = [fixed_map_plan.get(s[3], s[2]) for s in subs]
+        changes = [(i, subs[i][0], subs[i][2], fixed_texts[i], "复用")
+                   for i in range(len(subs))
+                   if subs[i][3] in fixed_map_plan and subs[i][2] != fixed_texts[i]]
+        log("OK", f"复用模式：待写回改动 {len(changes)} 条")
 
-    # ---- LLM层 ----
-    if not args.no_llm:
+    # ---- 规则层 ----（复用模式跳过）
+    if not args.reuse:
+        log("STEP", "[3/5] 规则层替换（术语表映射）...")
+        fixed_texts = []
+        for i, (start, dur, text, mid) in enumerate(subs):
+            new_text, reasons = rule_fix(text, terms_cfg)
+            if reasons:
+                changes.append((i, start, text, new_text, "规则: " + "、".join(reasons)))
+            fixed_texts.append(new_text)
+        log("OK", f"规则层修正 {sum(1 for c in changes)} 条")
+
+    # ---- LLM层 ----（复用模式跳过）
+    if not args.reuse and not args.no_llm:
         log("STEP", f"[4/5] LLM 纠错（{ZHIPU_MODEL}，每批{args.batch}条，4路并发）...")
         api_key = get_api_key()
         if api_key:
@@ -442,8 +470,18 @@ def main():
                 total_llm_changes += bc
                 print(f"    进度 {done_count}/{len(batches)} 批完成，本批改 {bc} 条", flush=True)
         log("OK", f"LLM 层修正 {total_llm_changes} 条")
-    else:
+    elif not args.reuse:
         log("INFO", "跳过 LLM 层（--no-llm）")
+
+    # ---- 保存纠错plan（供 --reuse 秒级复用；复用模式不覆盖） ----
+    if not args.reuse:
+        plan = {"draft": args.draft,
+                "created": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "model": ZHIPU_MODEL,
+                "fixes": [{"mid": subs[i][3], "text": fixed_texts[i]}
+                          for i in range(len(subs)) if fixed_texts[i] != subs[i][2]]}
+        with open(os.path.join(out_dir, "plan.json"), "w", encoding="utf-8") as f:
+            json.dump(plan, f, ensure_ascii=False, indent=1)
 
     # ---- 对照表 ----
     log("STEP", "[5/5] 生成对照表与产物 ...")

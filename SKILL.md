@@ -33,7 +33,8 @@ description: 剪映字幕AI纠错流水线。当用户说"纠字幕"、"字幕�
 
 ```powershell
 & "<skill目录>/scripts/fix_subtitles.py" "草稿名" --dry-run   # 预览
-& "<skill目录>/scripts/fix_subtitles.py" "草稿名"             # 正式写回
+& "<skill目录>/scripts/fix_subtitles.py" "草稿名" --reuse     # 确认后秒级写回（复用dry-run结果）
+& "<skill目录>/scripts/fix_subtitles.py" "草稿名"             # 完整重算并写回
 & "<skill目录>/scripts/fix_subtitles.py" "草稿名" --no-llm    # 纯规则，秒出
 ```
 
@@ -42,8 +43,13 @@ description: 剪映字幕AI纠错流水线。当用户说"纠字幕"、"字幕�
 | 参数 | 作用 |
 |---|---|
 | `--dry-run` | 只出对照表+SRT 不写回（剪映开着也能跑） |
+| `--reuse` | 复用最近一次计算的纠错结果直接写回，跳过 LLM 重跑（秒级）。前提：那次之后没在剪映里改过字幕 |
+| `--model M` | 智谱模型名，默认 glm-4-flash；晚高峰限流慢时换 `glm-5.3-flash`（也可设环境变量 ZHIPU_MODEL） |
 | `--no-llm` | 只跑术语表规则替换，不调 API |
 | `--batch N` | LLM 每批条数，默认 30 |
+
+**推荐节奏**：`--dry-run` 看对照表 → 用户确认+关剪映 → `--reuse` 秒级写回。
+（完整重算模式保留幂等性，适合确认前草稿又被改过的场景）
 
 ## 术语表维护（核心！越用越准）
 
