@@ -26,6 +26,7 @@
     "RAG",
     "DeepSeek",
     "DeepSeek Harness",
+    "resume",
     "SRT",
     "JSON",
     "Markdown"
@@ -66,6 +67,8 @@
     "DC Harness": "DeepSeek Harness",
     "discovery": "DeepSeek Harness",
     "Adobe的服务": "Anthropic的服务",
-    "那个Adobe": "那个Anthropic"
+    "那个Adobe": "那个Anthropic",
+    "reshow": "resume",
+    "re-show": "resume"
   }
 }
