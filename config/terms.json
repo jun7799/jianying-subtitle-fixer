@@ -29,6 +29,8 @@
     "web-search",
     "web-access",
     "agent-reach",
+    "CLAUDE.md",
+    "AGENTS.md",
     "Word",
     "PPT",
     "Excel",
@@ -83,6 +85,8 @@
     "re-show": "resume",
     "sub agent": "Sub-Agent",
     "subAgent": "Sub-Agent",
-    "subagent": "Sub-Agent"
+    "subagent": "Sub-Agent",
+    "Claude.md": "CLAUDE.md",
+    "claude md": "CLAUDE.md"
   }
 }
