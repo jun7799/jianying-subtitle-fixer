@@ -31,6 +31,9 @@
     "agent-reach",
     "CLAUDE.md",
     "AGENTS.md",
+    "MemPalace",
+    "ai-memory",
+    "claude-mem",
     "Word",
     "PPT",
     "Excel",
@@ -87,6 +90,10 @@
     "subAgent": "Sub-Agent",
     "subagent": "Sub-Agent",
     "Claude.md": "CLAUDE.md",
-    "claude md": "CLAUDE.md"
+    "claude md": "CLAUDE.md",
+    "memory palace": "MemPalace",
+    "ai memory": "ai-memory",
+    "cloud memory": "claude-mem",
+    "claude memory": "claude-mem"
   }
 }
