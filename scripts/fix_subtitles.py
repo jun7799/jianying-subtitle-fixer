@@ -218,8 +218,8 @@ REGEX_FIXES = [
     (re.compile(r"(?<![a-zA-Z])(cl[ao]{1,2}w?k?|cloud|clou)\s*(扣|code|科德)(?![a-zA-Z])", re.IGNORECASE), "Claude Code"),
     # CLAUDE.md 文件：cloud MD / cloud MB / cloak md / cloud点MD / clow.md ...
     (re.compile(r"(?<![a-zA-Z])(cl[ao]{1,2}w?k?|cloud|clou)\s*[.·点]?\s*(md|mb)(?![a-zA-Z])", re.IGNORECASE), "CLAUDE.md"),
-    # 单独的 claude 误识：cloud / clow（教程语境几乎不会说英文"云"，要说云都是"云端"）
-    (re.compile(r"(?<![a-zA-Z])(cloud|clow)(?![a-zA-Z])", re.IGNORECASE), "Claude"),
+    # 单独的 claude 误识：cloud / clow / claw（教程语境几乎不会说英文"云"和"爪"）
+    (re.compile(r"(?<![a-zA-Z])(cloud|clow|claw)(?![a-zA-Z])", re.IGNORECASE), "Claude"),
 ]
 
 
